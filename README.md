@@ -1,16 +1,16 @@
 # SandboxPilotKit
 
-The companion SDK for [SandboxPilot](https://github.com/leanbytes/SandboxPilot) — a macOS
-control center inspired by a similar tool, but for regular sandboxed/un-sandboxed Mac apps.
+The companion SDK for [SandboxPilot](https://github.com/LeanBytes/SandboxPilot) — a macOS
+control center for your own Mac apps.
 
-Because SandboxPilot cannot reach into an arbitrary app the way a similar tool talks to the iOS
-simulator, the app you want to control embeds **SandboxPilotKit**. The kit opens a loopback
-connection to the companion and lets it remotely:
+The app you want to control embeds **SandboxPilotKit**. The kit opens a loopback connection to
+the companion and lets it remotely:
 
-- switch **appearance** (light / dark),
+- switch **appearance** (System / Light / Dark),
 - switch **language / localization** (and relaunch),
-- **resize** and **focus** windows,
-- read and patch **UserDefaults**.
+- force **right-to-left** layout,
+- **resize**, **focus** and **screenshot** windows,
+- read and patch **UserDefaults** (live).
 
 It carries no logging functionality — that is a separate product.
 
@@ -19,7 +19,7 @@ It carries no logging functionality — that is a separate product.
 Swift Package Manager. Add the dependency and link `SandboxPilotKit` to your app target:
 
 ```swift
-.package(url: "https://github.com/leanbytes/SandboxPilotKit.git", from: "1.0.0")
+.package(url: "https://github.com/LeanBytes/SandboxPilotKit.git", from: "1.0.0")
 ```
 
 …or reference it locally during development:
@@ -49,10 +49,20 @@ struct MyApp: App {
 
 `SandboxPilot.start()` is a no-op in release builds, so shipping apps never open a port.
 
+## Sandboxed apps
+
+The kit works inside the App Sandbox. Add the outgoing-network entitlement to the app you're
+controlling:
+
+```xml
+<key>com.apple.security.network.client</key>
+<true/>
+```
+
+Relaunching (used by language switching and the RTL toggle) goes through `NSWorkspace`, so it
+works sandboxed as well as un-sandboxed.
+
 ## Requirements
 
 - macOS 26+
 - Swift 6.2+
-
-The controlling features rely on AppKit (`NSApp`, window numbers) and a non-sandboxed process
-for the language-switch relaunch, so the kit is intended for development/test builds of your app.

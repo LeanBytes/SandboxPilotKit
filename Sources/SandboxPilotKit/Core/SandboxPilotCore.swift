@@ -108,6 +108,9 @@ final actor SandboxPilotCore {
         case .windowAsKeyRequest(let number):
             await MainActor.run { SandboxPilotUI.shared.makeKey(windowNumber: number) }
 
+        case .relaunchRequest(let arguments):
+            await MainActor.run { RelaunchControl().relaunch(arguments: arguments) }
+
         case .userDefaultsPatch(let patches):
             applyUserDefaults(patches)
             // Report the resulting state back so the companion stays in sync.

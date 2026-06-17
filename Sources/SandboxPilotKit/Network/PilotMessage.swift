@@ -30,4 +30,6 @@ public enum PilotServerMessage: Codable, Sendable {
     case userDefaultsPatch([PrefPatch])
     case languageChangeRequest(String)
     case requestDefaults
+    /// Relaunch the app, optionally with extra launch arguments.
+    case relaunchRequest([String])
 }
