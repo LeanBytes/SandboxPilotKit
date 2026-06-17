@@ -16,6 +16,8 @@ final class RelevantNotifications: NSObject {
 
     var onAppWindowsResized: (([AppWindow]) -> Void)?
 
+    private var lastWindows: [AppWindow] = []
+
     private override init() {
         super.init()
         let nc = NotificationCenter.default
@@ -34,15 +36,26 @@ final class RelevantNotifications: NSObject {
     func updateWindows(ignore: NSWindow? = nil) {
         var result: [AppWindow] = []
         for window in NSApp.windows {
+            // Only report on-screen, real windows (skip menus, panels we don't own, etc.).
+            guard window.isVisible else { continue }
             if ignore == nil || window.windowNumber != ignore!.windowNumber {
                 let appWindow = AppWindow(
                     windowNumber: window.windowNumber,
                     title: window.title,
-                    frame: window.frame
+                    frame: window.frame.roundedToPoints
                 )
                 result.append(appWindow)
             }
         }
+
+        // `NSApp.windows` is returned in z-order, which reshuffles constantly;
+        // sort by window number so the change-detection below is stable.
+        result.sort { $0.windowNumber < $1.windowNumber }
+
+        // `didUpdateNotification` fires constantly (on every redraw); only emit
+        // when the window list actually changed.
+        guard result != lastWindows else { return }
+        lastWindows = result
         onAppWindowsResized?(result)
     }
 

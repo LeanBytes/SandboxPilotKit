@@ -33,3 +33,11 @@ public struct AppWindow: Hashable, Codable, Sendable {
         self.frame = frame
     }
 }
+
+extension CGRect {
+    /// Rounded to whole points. Reported window frames carry sub-pixel layout
+    /// jitter that would otherwise defeat change-detection (and looks noisy).
+    var roundedToPoints: CGRect {
+        CGRect(x: origin.x.rounded(), y: origin.y.rounded(), width: width.rounded(), height: height.rounded())
+    }
+}

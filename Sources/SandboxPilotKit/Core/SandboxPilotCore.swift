@@ -17,6 +17,7 @@ final actor SandboxPilotCore {
 
     private let net: NetworkService
     private var tasks: [Task<Void, Never>] = []
+    private var defaultsSendTask: Task<Void, Never>?
 
     init() {
         self.net = NetworkService()
@@ -52,10 +53,13 @@ final actor SandboxPilotCore {
             await self.net.send(.defaults(self.snapshotUserDefaults()))
         })
 
-        // Keep the window list fresh as windows open, close and update.
+        // Keep the window list and UserDefaults fresh as they change.
         await MainActor.run {
             RelevantNotifications.shared.onAppWindowsResized = { [weak self] windows in
                 Task { [weak self] in await self?.net.send(.windows(windows)) }
+            }
+            DefaultsObserver.shared.onChange = { [weak self] in
+                Task { [weak self] in await self?.scheduleDefaultsSend() }
             }
         }
     }
@@ -63,9 +67,25 @@ final actor SandboxPilotCore {
     func stop() async {
         for task in tasks { task.cancel() }
         tasks.removeAll()
-        await MainActor.run { RelevantNotifications.shared.onAppWindowsResized = nil }
+        defaultsSendTask?.cancel()
+        defaultsSendTask = nil
+        await MainActor.run {
+            RelevantNotifications.shared.onAppWindowsResized = nil
+            DefaultsObserver.shared.onChange = nil
+        }
         started = false
         await net.close()
+    }
+
+    /// Coalesces bursts of UserDefaults changes into a single snapshot send.
+    private func scheduleDefaultsSend() {
+        defaultsSendTask?.cancel()
+        defaultsSendTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard let self, !Task.isCancelled else { return }
+            let snapshot = await self.snapshotUserDefaults()
+            await self.net.send(.defaults(snapshot))
+        }
     }
 
     // MARK: Command handling
@@ -136,9 +156,12 @@ final actor SandboxPilotCore {
 
     @MainActor
     private func collectWindows() -> [AppWindow] {
-        NSApp.windows.map { window in
-            AppWindow(windowNumber: window.windowNumber, title: window.title, frame: window.frame)
-        }
+        NSApp.windows
+            .filter { $0.isVisible }
+            .map { window in
+                AppWindow(windowNumber: window.windowNumber, title: window.title, frame: window.frame.roundedToPoints)
+            }
+            .sorted { $0.windowNumber < $1.windowNumber }
     }
 
     // MARK: UserDefaults
