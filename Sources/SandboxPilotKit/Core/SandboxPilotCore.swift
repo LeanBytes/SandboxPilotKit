@@ -102,8 +102,18 @@ final actor SandboxPilotCore {
 
     @MainActor
     private func collectEnvironment() -> AppEnvironment {
-        let isDark = NSApp.appearance?.name == .darkAqua
-        let appearance = isDark ? "dark" : "light"
+        // Report the *override* state. When the app hasn't overridden its
+        // appearance, NSApp.appearance is nil and it follows the system — that
+        // is "system", not "light".
+        let appearance: String
+        switch NSApp.appearance?.name {
+        case .some(.darkAqua):
+            appearance = "dark"
+        case .some(.aqua):
+            appearance = "light"
+        default:
+            appearance = "system"
+        }
         let locale = Locale.current.identifier
         return AppEnvironment(language: locale, appearance: appearance)
     }
