@@ -110,12 +110,17 @@ final actor SandboxPilotCore {
 
     @MainActor
     private func collectAppInfo() -> AppInfo {
-        AppInfo(
+        // `Bundle.localizations` can repeat entries when both .lproj folders and
+        // CFBundleLocalizations are present, so dedupe while preserving order.
+        var seen = Set<String>()
+        let localizations = Bundle.main.localizations.filter { seen.insert($0).inserted }
+
+        return AppInfo(
             name: Bundle.main.appName,
             bundleId: Bundle.main.bundleIdentifier,
             version: Bundle.main.appVersionLong,
             build: Bundle.main.appBuild,
-            localizations: Bundle.main.localizations
+            localizations: localizations
         )
     }
 
