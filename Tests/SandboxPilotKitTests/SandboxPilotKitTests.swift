@@ -74,4 +74,48 @@ struct PrefPatchValueTests {
         #expect(restored?["a"] as? Int == 1)
         #expect(restored?["b"] as? String == "two")
     }
+
+    // Regression: the integers 0 and 1 bridge to Bool, so a naive `as? Bool`
+    // misclassifies them. fromAny must keep them as integers.
+    @Test("0 and 1 are integers, not booleans")
+    func zeroAndOneAreIntegers() {
+        #expect(PrefPatch.Value.fromAny(0) == .int(0))
+        #expect(PrefPatch.Value.fromAny(1) == .int(1))
+        #expect(PrefPatch.Value.fromAny(true) == .bool(true))
+        #expect(PrefPatch.Value.fromAny(false) == .bool(false))
+    }
+
+    // The values actually come out of UserDefaults as NSNumber/CFBoolean, so
+    // verify classification through a real round-trip — including 0/0.0, which
+    // is where the bug showed up.
+    @Test("UserDefaults scalars classify by their true type")
+    func userDefaultsScalarsClassify() {
+        let suite = "io.leanbytes.sandboxpilot.tests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        defaults.set(false, forKey: "flagFalse")
+        defaults.set(true, forKey: "flagTrue")
+        defaults.set(0, forKey: "intZero")
+        defaults.set(1, forKey: "intOne")
+        defaults.set(7, forKey: "intSeven")
+        defaults.set(0.0, forKey: "doubleZero")
+        defaults.set(3.5, forKey: "doubleVal")
+        defaults.set(Float(2.5), forKey: "floatVal")
+        defaults.set("hi", forKey: "stringVal")
+
+        func value(_ key: String) -> PrefPatch.Value? {
+            defaults.object(forKey: key).flatMap { PrefPatch.Value.fromAny($0) }
+        }
+
+        #expect(value("flagFalse") == .bool(false))
+        #expect(value("flagTrue") == .bool(true))
+        #expect(value("intZero") == .int(0))
+        #expect(value("intOne") == .int(1))
+        #expect(value("intSeven") == .int(7))
+        #expect(value("doubleZero") == .double(0))
+        #expect(value("doubleVal") == .double(3.5))
+        #expect(value("floatVal") == .double(2.5))
+        #expect(value("stringVal") == .string("hi"))
+    }
 }

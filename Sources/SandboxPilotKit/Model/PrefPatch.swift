@@ -37,25 +37,27 @@ public struct PrefPatch: Codable, Identifiable, Sendable, Equatable {
 
 extension PrefPatch.Value: Sendable {
     /// Best-effort conversion from an arbitrary `UserDefaults` value into a
-    /// serializable `Value`. Order matters because `NSNumber` bridges to
-    /// several Swift types.
+    /// serializable `Value`.
     public static func fromAny(_ any: Any) -> PrefPatch.Value? {
+        // UserDefaults stores scalars as NSNumber / CFBoolean, so disambiguate
+        // those FIRST. `any as? Bool` succeeds for the integers 0 and 1, which
+        // would otherwise misclassify those numbers as booleans.
+        if let num = any as? NSNumber {
+            if CFGetTypeID(num) == CFBooleanGetTypeID() {
+                return .bool(num.boolValue)
+            }
+            // objCType: f/d are floating point; everything else is an integer.
+            let objCType = String(cString: num.objCType)
+            if objCType == "f" || objCType == "d" {
+                return .double(num.doubleValue)
+            }
+            return .int(num.intValue)
+        }
+
         if let v = any as? String { return .string(v) }
-        if let v = any as? Bool   { return .bool(v) }
-        if let v = any as? Int    { return .int(v) }
-        if let v = any as? Double { return .double(v) }
-        if let v = any as? Float  { return .double(Double(v)) }
         if let v = any as? Data   { return .data(v) }
         if let v = any as? Date   { return .date(v) }
         if any is NSNull          { return .null }
-
-        // NSNumber can be bool or number — inspect objCType
-        if let num = any as? NSNumber {
-            let t = String(cString: num.objCType)
-            if t == "c" { return .bool(num.boolValue) }       // CChar/Bool
-            if CFNumberIsFloatType(num) == false { return .int(num.intValue) }
-            return .double(num.doubleValue)
-        }
 
         // Arrays/Dictionaries — recurse
         if let arr = any as? [Any] {
