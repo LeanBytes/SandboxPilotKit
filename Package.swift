@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "SandboxPilotKit",
     platforms: [
-        .macOS("26.0")
+        .macOS(.v14)
     ],
     products: [
         // SandboxPilotKit is embedded into the macOS apps you want to control from
