@@ -116,6 +116,9 @@ final actor SandboxPilotCore {
             // Report the resulting state back so the companion stays in sync.
             await net.send(.defaults(snapshotUserDefaults()))
 
+        case .setLaunchParameters(let parameters):
+            LaunchParametersStore.set(parameters)
+
         case .ack, .error:
             break
         }

@@ -32,4 +32,10 @@ public enum PilotServerMessage: Codable, Sendable {
     case requestDefaults
     /// Relaunch the app, optionally with extra launch arguments.
     case relaunchRequest([String])
+    /// Set the app's SandboxPilot launch parameters. They are written to a
+    /// dedicated UserDefaults suite (never the standard domain), so the host app
+    /// can read them as a fallback for real command-line launch arguments
+    /// without SandboxPilot ever touching its real preferences. Sending this
+    /// replaces the whole set, so nothing leaks between runs.
+    case setLaunchParameters([String: String])
 }
