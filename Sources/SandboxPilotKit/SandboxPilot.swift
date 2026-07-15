@@ -37,4 +37,21 @@ public enum SandboxPilot {
     /// Window controls usable from the host app if needed.
     @MainActor
     public static var ui: SandboxPilotUI { SandboxPilotUI.shared }
+
+    // MARK: Launch parameters
+
+    /// A launch parameter SandboxPilot set for this app, or nil if none. The
+    /// host app calls this as a *fallback* for real command-line launch
+    /// arguments — read it only after checking the argument domain, so genuine
+    /// CLI launches always win. Reads a dedicated suite (see
+    /// `LaunchParametersStore`), so it works at the very start of launch without
+    /// waiting for the connection, and never reflects the app's real prefs.
+    public static func launchParameter(_ key: String) -> String? {
+        LaunchParametersStore.value(key)
+    }
+
+    /// All launch parameters SandboxPilot set for this app.
+    public static var launchParameters: [String: String] {
+        LaunchParametersStore.all
+    }
 }
