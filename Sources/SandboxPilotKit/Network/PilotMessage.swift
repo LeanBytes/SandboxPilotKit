@@ -7,6 +7,23 @@
 //  separated by a newline (0x0A) on a loopback TCP connection.
 //
 
+/// The on-screen frame of a control the app exposes by accessibility identifier,
+/// resolved in-process by the kit and reported to SandboxPilot so it can aim input
+/// at the real element. Coordinates are the global screen space, top-left origin
+/// (the CGEvent space). All components nil when the identifier wasn't found.
+public struct ElementFrame: Codable, Sendable {
+    public let identifier: String
+    public let x: Double?
+    public let y: Double?
+    public let width: Double?
+    public let height: Double?
+    public init(identifier: String, x: Double?, y: Double?, width: Double?, height: Double?) {
+        self.identifier = identifier
+        self.x = x; self.y = y; self.width = width; self.height = height
+    }
+    public var found: Bool { x != nil && width != nil }
+}
+
 /// Messages sent FROM a controlled app TO the SandboxPilot companion app.
 public enum PilotClientMessage: Codable, Sendable {
     case ack(String)
@@ -16,6 +33,8 @@ public enum PilotClientMessage: Codable, Sendable {
     case info(AppInfo)
     case windows([AppWindow])
     case defaults([PrefPatch])
+    /// The resolved frame for an `elementFrameRequest` (or a not-found reply).
+    case elementFrame(ElementFrame)
 }
 
 /// Messages sent FROM the SandboxPilot companion app TO a controlled app.
@@ -32,6 +51,12 @@ public enum PilotServerMessage: Codable, Sendable {
     case requestDefaults
     /// Relaunch the app, optionally with extra launch arguments.
     case relaunchRequest([String])
+    /// Ask the app to resolve one of its controls (by accessibility identifier) to a
+    /// screen frame, in-process, and reply with `elementFrame`. Lets SandboxPilot aim
+    /// at real controls without cross-process Accessibility (which the App Sandbox
+    /// blocks) and without any SandboxPilot-specific code in the target — the app only
+    /// needs to label its controls with `.accessibilityIdentifier(_:)`.
+    case elementFrameRequest(String)
     /// Set the app's SandboxPilot launch parameters. They are written to a
     /// dedicated UserDefaults suite (never the standard domain), so the host app
     /// can read them as a fallback for real command-line launch arguments

@@ -119,6 +119,9 @@ final actor SandboxPilotCore {
         case .setLaunchParameters(let parameters):
             LaunchParametersStore.set(parameters)
 
+        case .elementFrameRequest(let identifier):
+            await net.send(.elementFrame(ElementLocator.screenFrame(identifier: identifier)))
+
         case .ack, .error:
             break
         }
