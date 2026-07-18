@@ -9,9 +9,14 @@
 //  label its controls with `.accessibilityIdentifier(_:)` (ordinary accessibility);
 //  it needs no SandboxPilot-specific code.
 //
-//  The AX read runs OFF the main thread on purpose: an app reading its own AX tree
-//  from the main thread deadlocks, because the accessibility server services that
-//  request on the very same runloop.
+//  The AX read runs ON the main thread. Reading one's own AX tree traverses AppKit
+//  accessibility, whose element callbacks (e.g. an NSTableView's row-view delegate)
+//  are @MainActor — invoking them off the main thread trips Swift's actor assertion
+//  and crashes. A self-read on the main thread services those callbacks inline, so it
+//  does not deadlock (the cross-process deadlock warning applies to reading *another*
+//  app, not oneself). We also skip the big table/outline subtree: the controls a plan
+//  targets live in the toolbar, search bar, and inspector, and walking thousands of
+//  log rows is pointless (and would force every row view to be realized).
 //
 
 import AppKit
@@ -21,24 +26,25 @@ enum ElementLocator {
     /// Screen frame (global, top-left origin — the CGEvent space) of this app's first
     /// element whose `AXIdentifier` equals `identifier`. Components are nil if absent.
     static func screenFrame(identifier: String) async -> ElementFrame {
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let app = AXUIElementCreateApplication(getpid())
-                if let el = find(in: app, identifier: identifier, depth: 0), let r = frame(of: el) {
-                    continuation.resume(returning: ElementFrame(
-                        identifier: identifier,
-                        x: r.origin.x, y: r.origin.y, width: r.size.width, height: r.size.height))
-                } else {
-                    continuation.resume(returning: ElementFrame(
-                        identifier: identifier, x: nil, y: nil, width: nil, height: nil))
-                }
+        await MainActor.run {
+            let app = AXUIElementCreateApplication(getpid())
+            if let el = find(in: app, identifier: identifier, depth: 0), let r = frame(of: el) {
+                return ElementFrame(identifier: identifier,
+                                    x: r.origin.x, y: r.origin.y, width: r.size.width, height: r.size.height)
             }
+            return ElementFrame(identifier: identifier, x: nil, y: nil, width: nil, height: nil)
         }
     }
 
+    private static let skippedRoles: Set<String> = ["AXTable", "AXOutline", "AXList"]
+
+    @MainActor
     private static func find(in element: AXUIElement, identifier: String, depth: Int) -> AXUIElement? {
         if depth > 80 { return nil }
         if string(element, kAXIdentifierAttribute) == identifier { return element }
+        // Don't descend into the log table/outline — targets live elsewhere, and
+        // enumerating its rows would realize thousands of row views for nothing.
+        if let role = string(element, kAXRoleAttribute), skippedRoles.contains(role) { return nil }
         for child in children(of: element) {
             if let hit = find(in: child, identifier: identifier, depth: depth + 1) { return hit }
         }
