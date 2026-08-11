@@ -82,17 +82,29 @@ public enum SandboxPilot {
     #if DEBUG
     /// Applies the appearance a screenshot run left for this launch, if any.
     ///
-    /// Has to be synchronous and ahead of the first window, so it has to run on
-    /// the main thread — `start()` is documented as an app-init call, so it
-    /// does. A call from anywhere else is skipped rather than trapped: the run
-    /// then falls back to the companion's live appearance change, which is what
-    /// happened before this existed.
+    /// Has to land ahead of the first window, and has to run on the main thread
+    /// — `start()` is documented as an app-init call, so it does. A call from
+    /// anywhere else is skipped rather than trapped: the run then falls back to
+    /// the companion's live appearance change, which is what happened before
+    /// this existed.
     private static func applyPendingAppearance() {
         guard Thread.isMainThread,
               let raw = LaunchParametersStore.value(appearanceParameterKey),
               let appearance = Appearance(rawValue: raw)
         else { return }
-        MainActor.assumeIsolated { AppearanceControl().change(to: appearance) }
+
+        // A SwiftUI App's init() runs before AppKit has created NSApp, so the
+        // first attempt normally reports "nothing to apply it to yet".
+        // willFinishLaunching is the next moment, and still ahead of any window.
+        if MainActor.assumeIsolated({ AppearanceControl().change(to: appearance) }) { return }
+
+        var token: (any NSObjectProtocol)?
+        token = NotificationCenter.default.addObserver(
+            forName: NSApplication.willFinishLaunchingNotification, object: nil, queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { AppearanceControl().change(to: appearance) }
+            token.map(NotificationCenter.default.removeObserver)
+        }
     }
     #endif
 }
