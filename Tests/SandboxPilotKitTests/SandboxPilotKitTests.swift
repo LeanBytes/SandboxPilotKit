@@ -3,6 +3,7 @@
 //  SandboxPilotKit
 //
 
+import AppKit
 import Foundation
 import Testing
 @testable import SandboxPilotKit
@@ -66,6 +67,19 @@ struct LaunchParameterTests {
 
         #expect(SandboxPilot.launchParameters == ["ArchivePath": "/tmp/demo.zip"])
         #expect(SandboxPilot.launchParameter("ArchivePath") == "/tmp/demo.zip")
+    }
+
+    // Regression: NSApp is an implicitly unwrapped optional that really is nil
+    // before AppKit creates the application object, so assigning through it
+    // traps. A host app applying a pending appearance from its initializer hits
+    // exactly that, and 1.3.0 crashed on launch. This test process has no
+    // NSApplication either, so it reproduces the same state.
+    @MainActor
+    @Test("applying an appearance before NSApp exists reports failure instead of trapping")
+    func appearanceBeforeNSAppDoesNotTrap() {
+        #expect(NSApp == nil, "the test process is expected to have no NSApplication")
+        #expect(AppearanceControl().change(to: .light) == false)
+        #expect(AppearanceControl().change(to: .system) == false)
     }
 }
 
