@@ -48,6 +48,27 @@ struct WireProtocolTests {
     }
 }
 
+@Suite("Launch parameters")
+struct LaunchParameterTests {
+
+    // The appearance a screenshot run hands down travels in the same suite as
+    // the host app's own parameters, so a host iterating `launchParameters`
+    // must not find SandboxPilot's reserved key among them.
+    @Test("the reserved appearance key is hidden from launchParameters")
+    func appearanceKeyIsReserved() {
+        let saved = LaunchParametersStore.all
+        defer { LaunchParametersStore.set(saved) }
+
+        LaunchParametersStore.set([
+            "ArchivePath": "/tmp/demo.zip",
+            SandboxPilot.appearanceParameterKey: "light",
+        ])
+
+        #expect(SandboxPilot.launchParameters == ["ArchivePath": "/tmp/demo.zip"])
+        #expect(SandboxPilot.launchParameter("ArchivePath") == "/tmp/demo.zip")
+    }
+}
+
 @Suite("PrefPatch.Value")
 struct PrefPatchValueTests {
 

@@ -14,11 +14,17 @@ public enum SandboxPilot {
 
     /// Starts the connection to the SandboxPilot companion app and begins
     /// handling remote-control commands. No-op in release builds.
+    ///
+    /// Call it from the host app's initializer, on the main thread. Besides
+    /// opening the connection it applies the appearance a screenshot run left
+    /// for this launch (see `appearanceParameterKey`), which only works while
+    /// the app has no windows yet.
     public static func start(
         host: String = "127.0.0.1",
         port: UInt16 = 8085
     ) {
         #if DEBUG
+        applyPendingAppearance()
         Task {
             await SandboxPilotCore.shared.start(host: host, port: port)
         }
@@ -50,8 +56,43 @@ public enum SandboxPilot {
         LaunchParametersStore.value(key)
     }
 
-    /// All launch parameters SandboxPilot set for this app.
+    /// All launch parameters SandboxPilot set for this app. `appearanceParameterKey`
+    /// is not among them: it is SandboxPilot's own channel into the Kit, not one
+    /// of the host app's parameters.
     public static var launchParameters: [String: String] {
-        LaunchParametersStore.all
+        LaunchParametersStore.all.filter { $0.key != appearanceParameterKey }
     }
+
+    // MARK: Appearance
+
+    /// The reserved launch parameter a screenshot run uses to hand the app its
+    /// appearance *before it launches*, instead of overriding a running one.
+    ///
+    /// The difference is not cosmetic. AppKit resolves some colors once, when a
+    /// control is set up, and never again. A search field focused at launch
+    /// resolves its field editor's text color against the appearance of that
+    /// moment; setting `NSApp.appearance` afterwards repaints the field but not
+    /// the text, which then draws white on a light background. Launching
+    /// straight into the target appearance leaves nothing to go stale.
+    ///
+    /// It is prefixed so it can never collide with a host app's own parameters,
+    /// which are always parsed from `-Key value` arguments.
+    public static let appearanceParameterKey = "__appearance"
+
+    #if DEBUG
+    /// Applies the appearance a screenshot run left for this launch, if any.
+    ///
+    /// Has to be synchronous and ahead of the first window, so it has to run on
+    /// the main thread — `start()` is documented as an app-init call, so it
+    /// does. A call from anywhere else is skipped rather than trapped: the run
+    /// then falls back to the companion's live appearance change, which is what
+    /// happened before this existed.
+    private static func applyPendingAppearance() {
+        guard Thread.isMainThread,
+              let raw = LaunchParametersStore.value(appearanceParameterKey),
+              let appearance = Appearance(rawValue: raw)
+        else { return }
+        MainActor.assumeIsolated { AppearanceControl().change(to: appearance) }
+    }
+    #endif
 }
