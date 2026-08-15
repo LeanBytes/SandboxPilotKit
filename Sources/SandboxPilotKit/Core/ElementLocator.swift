@@ -36,6 +36,29 @@ enum ElementLocator {
         }
     }
 
+    /// Carries out `action` on this app's control with that accessibility
+    /// identifier. Same in-process self-read as `screenFrame`, so it needs no
+    /// Accessibility grant, and no knowledge of what the app's UI contains.
+    static func perform(_ action: ElementAction) async -> ElementActionResult {
+        await MainActor.run {
+            let app = AXUIElementCreateApplication(getpid())
+            guard let element = find(in: app, identifier: action.identifier, depth: 0) else {
+                return ElementActionResult(
+                    identifier: action.identifier, kind: action.kind, performed: false,
+                    failure: "no control with accessibility identifier \"\(action.identifier)\""
+                )
+            }
+            switch action.kind {
+            case .focus:
+                let code = AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+                return ElementActionResult(
+                    identifier: action.identifier, kind: action.kind, performed: code == .success,
+                    failure: code == .success ? nil : "AXFocused could not be set (AXError \(code.rawValue))"
+                )
+            }
+        }
+    }
+
     private static let skippedRoles: Set<String> = ["AXTable", "AXOutline", "AXList"]
 
     @MainActor

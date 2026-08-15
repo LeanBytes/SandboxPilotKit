@@ -23,6 +23,8 @@ struct WireProtocolTests {
             .windowAsKeyRequest(42),
             .windowResizeRequest(WindowResizeRequest(windowNumber: 7, frame: CGRect(x: 0, y: 0, width: 800, height: 500))),
             .userDefaultsPatch([PrefPatch(key: "k", value: .int(1))]),
+            .elementFrameRequest("search-field"),
+            .elementActionRequest(ElementAction(identifier: "search-field", kind: .focus)),
         ]
         for message in messages {
             let data = try encoder.encode(message)
@@ -41,6 +43,8 @@ struct WireProtocolTests {
             .environment(env),
             .windows([window]),
             .defaults([PrefPatch(key: "flag", value: .bool(true))]),
+            .elementActionResult(ElementActionResult(identifier: "search-field", kind: .focus, performed: true)),
+            .elementActionResult(ElementActionResult(identifier: "nope", kind: .focus, performed: false, failure: "not found")),
         ]
         for message in messages {
             let data = try encoder.encode(message)
@@ -80,6 +84,19 @@ struct LaunchParameterTests {
         #expect(NSApp == nil, "the test process is expected to have no NSApplication")
         #expect(AppearanceControl().change(to: .light) == false)
         #expect(AppearanceControl().change(to: .system) == false)
+    }
+
+    // A plan naming a control the app does not expose has to say so, rather than
+    // quietly succeeding and leaving whoever wrote it to work out why the shot
+    // looks wrong. Nothing in this process publishes that identifier.
+    @Test("acting on an unknown identifier reports why it failed")
+    func unknownElementActionExplainsItself() async {
+        let result = await ElementLocator.perform(
+            ElementAction(identifier: "no.such.control", kind: .focus)
+        )
+        #expect(result.performed == false)
+        #expect(result.identifier == "no.such.control")
+        #expect(result.failure?.contains("no.such.control") == true)
     }
 }
 

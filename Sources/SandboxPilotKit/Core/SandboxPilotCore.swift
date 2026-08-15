@@ -122,6 +122,9 @@ final actor SandboxPilotCore {
         case .elementFrameRequest(let identifier):
             await net.send(.elementFrame(ElementLocator.screenFrame(identifier: identifier)))
 
+        case .elementActionRequest(let action):
+            await net.send(.elementActionResult(ElementLocator.perform(action)))
+
         case .ack, .error:
             break
         }
