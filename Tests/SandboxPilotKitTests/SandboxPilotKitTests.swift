@@ -56,14 +56,17 @@ struct WireProtocolTests {
 @Suite("Launch parameters")
 struct LaunchParameterTests {
 
-    // The appearance a screenshot run hands down travels in the same suite as
-    // the host app's own parameters, so a host iterating `launchParameters`
-    // must not find SandboxPilot's reserved key among them.
-    @Test("the reserved appearance key is hidden from launchParameters")
-    func appearanceKeyIsReserved() {
-        let saved = LaunchParametersStore.all
-        defer { LaunchParametersStore.set(saved) }
-
+    // The test process is one launch, and a launch's first read takes the
+    // stored set — so this is the only test that may read it.
+    //
+    // Regression: the set stayed in the suite until SandboxPilot replaced it,
+    // which its "Relaunch app" never does, so every later launch — a run from
+    // Xcode included — opened the last run's archive in the last run's
+    // appearance. That appearance travels in the same set as the host app's own
+    // parameters, and a host iterating `launchParameters` must not find
+    // SandboxPilot's reserved key among them.
+    @Test("a launch takes its stored set once, without the reserved appearance key")
+    func launchTakesItsParametersOnce() {
         LaunchParametersStore.set([
             "ArchivePath": "/tmp/demo.zip",
             SandboxPilot.appearanceParameterKey: "light",
@@ -71,6 +74,9 @@ struct LaunchParameterTests {
 
         #expect(SandboxPilot.launchParameters == ["ArchivePath": "/tmp/demo.zip"])
         #expect(SandboxPilot.launchParameter("ArchivePath") == "/tmp/demo.zip")
+
+        let nextLaunch = LaunchParametersStore.take(from: UserDefaults(suiteName: LaunchParametersStore.suiteName))
+        #expect(nextLaunch.isEmpty)
     }
 
     // Regression: NSApp is an implicitly unwrapped optional that really is nil

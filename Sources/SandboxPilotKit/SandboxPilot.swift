@@ -16,7 +16,8 @@ public enum SandboxPilot {
     /// handling remote-control commands. No-op in release builds.
     ///
     /// Call it from the host app's initializer, on the main thread. Besides
-    /// opening the connection it applies the appearance a screenshot run left
+    /// opening the connection it takes this launch's parameters (see
+    /// `launchParameter(_:)`) and applies the appearance a screenshot run left
     /// for this launch (see `appearanceParameterKey`), which only works while
     /// the app has no windows yet.
     public static func start(
@@ -24,6 +25,9 @@ public enum SandboxPilot {
         port: UInt16 = 8085
     ) {
         #if DEBUG
+        // Before the connection opens: a set SandboxPilot stores from here on
+        // is meant for the next launch, not this one.
+        _ = LaunchParametersStore.all
         applyPendingAppearance()
         Task {
             await SandboxPilotCore.shared.start(host: host, port: port)
@@ -46,17 +50,20 @@ public enum SandboxPilot {
 
     // MARK: Launch parameters
 
-    /// A launch parameter SandboxPilot set for this app, or nil if none. The
+    /// A launch parameter SandboxPilot set for this launch, or nil if none. The
     /// host app calls this as a *fallback* for real command-line launch
     /// arguments — read it only after checking the argument domain, so genuine
     /// CLI launches always win. Reads a dedicated suite (see
     /// `LaunchParametersStore`), so it works at the very start of launch without
     /// waiting for the connection, and never reflects the app's real prefs.
+    ///
+    /// Like a real launch argument it lasts one launch: the launch that reads it
+    /// removes it, so a plain relaunch or a run from Xcode afterwards gets nil.
     public static func launchParameter(_ key: String) -> String? {
         LaunchParametersStore.value(key)
     }
 
-    /// All launch parameters SandboxPilot set for this app. `appearanceParameterKey`
+    /// All launch parameters SandboxPilot set for this launch. `appearanceParameterKey`
     /// is not among them: it is SandboxPilot's own channel into the Kit, not one
     /// of the host app's parameters.
     public static var launchParameters: [String: String] {
