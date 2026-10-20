@@ -170,9 +170,7 @@ final actor SandboxPilotCore {
     private func collectWindows() -> [AppWindow] {
         NSApp.windows
             .filter { $0.isVisible }
-            .map { window in
-                AppWindow(windowNumber: window.windowNumber, title: window.title, frame: window.frame.roundedToPoints)
-            }
+            .map { AppWindow($0) }
             .sorted { $0.windowNumber < $1.windowNumber }
     }
 

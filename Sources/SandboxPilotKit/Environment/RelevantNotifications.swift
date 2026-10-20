@@ -39,12 +39,7 @@ final class RelevantNotifications: NSObject {
             // Only report on-screen, real windows (skip menus, panels we don't own, etc.).
             guard window.isVisible else { continue }
             if ignore == nil || window.windowNumber != ignore!.windowNumber {
-                let appWindow = AppWindow(
-                    windowNumber: window.windowNumber,
-                    title: window.title,
-                    frame: window.frame.roundedToPoints
-                )
-                result.append(appWindow)
+                result.append(AppWindow(window))
             }
         }
 
