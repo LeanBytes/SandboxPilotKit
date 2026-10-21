@@ -177,3 +177,20 @@ struct PrefPatchValueTests {
         #expect(value("stringVal") == .string("hi"))
     }
 }
+
+@Suite("Windows")
+struct AppWindowTests {
+
+    // An app on an older kit sends windows without an identifier. (No test here
+    // builds an NSWindow: that creates NSApp, which the appearance test above
+    // needs to be nil.)
+    @Test("a window from an older kit decodes without an identifier")
+    func olderWindowDecodes() throws {
+        let json = #"{"windowNumber":1,"title":"Main","frame":[[0,0],[100,100]]}"#
+        let window = try JSONDecoder().decode(AppWindow.self, from: Data(json.utf8))
+        #expect(window.identifier == nil)
+
+        let named = AppWindow(windowNumber: 1, title: "Main", frame: window.frame, identifier: "start-page")
+        #expect(try JSONDecoder().decode(AppWindow.self, from: JSONEncoder().encode(named)) == named)
+    }
+}

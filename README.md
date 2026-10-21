@@ -49,6 +49,20 @@ struct MyApp: App {
 
 `SandboxPilot.start()` is a no-op in release builds, so shipping apps never open a port.
 
+## Naming windows
+
+A SandboxPilot screenshot plan can name the window a scenario captures. Titles are translated,
+so it names windows by identifier: the one the Accessibility API reports, which XCUITests
+match too. That is the window's accessibility identifier, or failing that its `identifier`:
+
+```swift
+window.setAccessibilityIdentifier("start-page")
+```
+
+SwiftUI sets `identifier` on scene windows, but with a counter appended
+(`WindowGroup(id: "browser")` gives `browser-AppWindow-1`). Set an accessibility identifier on
+any window a plan names.
+
 ## Sandboxed apps
 
 The kit works inside the App Sandbox. Add the outgoing-network entitlement to the app you're
