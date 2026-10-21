@@ -26,6 +26,12 @@ struct RelaunchControl {
             }
             DispatchQueue.main.async {
                 NSApp.terminate(nil)
+                // terminate returns only when it did not quit: AppKit ignores it
+                // while a window shows a sheet, without even asking the delegate,
+                // and a delegate can cancel or defer it. The old instance would
+                // then stay on screen and connected, next to the new one. This
+                // relaunch was asked for, so quit regardless.
+                exit(0)
             }
         }
     }
