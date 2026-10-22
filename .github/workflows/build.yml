@@ -1,0 +1,18 @@
+name: build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    # The oldest Xcode an app on the Kit builds with, MacPacker's CI. A newer
+    # compiler accepts code this one rejects (LeanBytes/SandboxPilot#51).
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v6
+      - run: swift --version
+      - run: swift test
