@@ -34,9 +34,11 @@ struct RelaunchControl {
                 guard let newInstance, NSApp.isActive else { quit() }
                 NSApp.yieldActivation(to: newInstance)
                 guard newInstance.activate(from: .current, options: []) else { quit() }
+                // The inner closure's `() -> Void` is spelled out: Swift 6.3 (Xcode 26)
+                // also infers `Never` from quit() for its result and fails the build.
                 NotificationCenter.default.addObserver(
                     forName: NSApplication.didResignActiveNotification, object: NSApp, queue: .main
-                ) { _ in MainActor.assumeIsolated { quit() } }
+                ) { _ in MainActor.assumeIsolated { () -> Void in quit() } }
                 // A new instance that dies before it takes over would leave this one waiting.
                 NSWorkspace.shared.notificationCenter.addObserver(
                     forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main
